@@ -1,0 +1,180 @@
+---
+title: "NLP capstone project"
+author: "Anton Mishchuk"
+date: "10/26/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary
+The idea of the project is creating an application that can predict the next word in a phrase. There are three sets of sentences given: "twitter", "blogs" and "news". Given that data, we need create a prediction model.
+
+The first milestone is about getting and cleaning data, and do basic exploratory analysis. What I've done by now:
+
+1. Cleaned the data: filtered sentences, removed punctuation, downcased words, etc.
+2. Extracted ngrams from datasets
+3. Built frequency diagram for 1, 2, 3, and 5-grams
+
+One can find the code here
+
+Please, see details below.
+
+
+## Data
+### Raw data
+Let's take a look at the data we have
+#### en_US.twitter.txt
+```{r}
+con <- file('en_US/en_US.twitter.txt')
+raw_lines <- readLines(con, n=5)
+close(con)
+raw_lines
+```
+Lots of punctuation marks, abbrivations, different case.
+If we are going to create a set on ngrams from the text data we definitely need to clean the data.
+
+
+### Data pre-processing
+There are few steps of data cleaning:
+
+* Exrtact sentences. I used "[\\w\\s']+" regexp to to so. The only non-word character is apostrophe (to handle words like "I'm"). I decided to keep all the rest punctuation marks as sentence delimiter. Hope, it is a good idea, at least at the very beginning
+* Downcase all the words in sentences.
+
+The code of "filter_sentences" function is below:
+```{r}
+filter_sentences <- function(raw_lines, sentences_path) {
+  con <- file(sentences_path, 'w')
+  for (line in raw_lines) {
+    ss <- str_match_all(line, "[\\w\\s']+")
+    ss <- unlist(ss)
+    ss <- lapply(ss, trimws)
+    ss <- lapply(ss, tolower)
+    ss <- ss[lapply(ss, nchar) > 0]
+    write(unlist(ss), con, append = TRUE)
+  }
+  close(con)
+}
+```
+The sentences are saved into separate files: "twitter_sentences.txt", "blogs_sentences.txt", "news_sentences.txt".
+
+## Exploratory analysis
+### Building ngrams
+For each set of sentences I've built a sets of ngrams, from one-grams to ten-grams. I'm not really sure that we need ten-words-grams, but let's do it for now.
+
+The code of "ngrams" function:
+```{r}
+ngrams <- function(str, n) {
+  ws <- words(str)
+  word_count <- length(ws)
+  if (word_count < n) { return(NULL) }
+  if (word_count == n) { return(str) }
+  
+  result <- NULL
+  for (i in c(1:(word_count-n+1))) {
+    result <- c(result, paste(ws[i:(i+n-1)], collapse = ' '))
+  }
+  result
+}
+```
+I've used "parallel" library to run ngrams creation in parallel using all processor cores.
+
+After ngrams being built I've calculated corresponding frequencies.
+In order to decrease size of files I saved ngrams that have frequency grater than or equal 5. There is no specific reason for choosing 5 for now, I just wanna filter statistically signifact ngrams and decrease a size of files.
+
+After all the pre-processing 30 relatevely small files (couple of MB each) are created - 10 files for each dataset ("twitters", "news", "blogs").
+Each file has a list of ngrams with their frequencies.
+
+For example, below are first 10 lines of 5-gram for every set:
+
+|twitter                  | blogs                 | news                             |
+|-------------------------|-----------------------|----------------------------------|
+|thank you so much for    | at the end of the     | at the end of the
+|thanks for the shout out | in the middle of the  | for the first time in
+|can't wait to see you    | the end of the day    | for the first time since
+|let me know if you       | for those of you who  | by the end of the
+|at the end of the        | for the first time in | in the middle of the
+|thanks so much for the   | the other side of the | the end of the day
+|thank you for the follow | by the end of the     | the end of the year
+|i love you so much       | for the rest of the   | at the time of the
+|is going to be a         | there are a lot of    | there are a lot of
+keep up the good work     | i thought it would be | the dow jones industrial average
+
+Twitter has very positive ngrams in the top! Blogs and news have general expressions about time and place.
+
+
+### Analysing ngrams
+Let's perform detailed ngrams analysis on the most positive - "twitter" - dataset.
+
+```{r}
+twitter_1 <- read.csv('data/ngrams/twitter_ngrams1.txt')
+dim(twitter_1)
+```
+So, there are 75559 words in our dataset. Remember that we filtered words with the frequency greater than or equal to 5.
+
+Below are top 10 ngrams for 1, 2, 3, and 5 words
+
+```{r echo=FALSE, cache=TRUE}
+twitter_1 <- read.csv('data/ngrams/twitter_ngrams1.txt')
+twitter_2 <- read.csv('data/ngrams/twitter_ngrams2.txt')
+twitter_3 <- read.csv('data/ngrams/twitter_ngrams3.txt')
+twitter_5 <- read.csv('data/ngrams/twitter_ngrams5.txt')
+
+library(ggplot2)
+source('multiplot.R')
+
+n = 20
+p1 <- ggplot(head(twitter_1, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p2 <- ggplot(head(twitter_2, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p3 <- ggplot(head(twitter_3, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p5 <- ggplot(head(twitter_5, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+
+multiplot(p1, p3, p2, p5, cols=2)
+```
+
+If we do the same plots for "blogs" set, we will see this:
+
+```{r echo=FALSE, cache=TRUE}
+blogs_1 <- read.csv('data/ngrams/blogs_ngrams1.txt')
+blogs_2 <- read.csv('data/ngrams/blogs_ngrams2.txt')
+blogs_3 <- read.csv('data/ngrams/blogs_ngrams3.txt')
+blogs_5 <- read.csv('data/ngrams/blogs_ngrams5.txt')
+
+library(ggplot2)
+source('multiplot.R')
+
+n = 20
+p1 <- ggplot(head(blogs_1, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p2 <- ggplot(head(blogs_2, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p3 <- ggplot(head(blogs_3, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p5 <- ggplot(head(blogs_5, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+
+multiplot(p1, p3, p2, p5, cols=2)
+```
+
+And for 'news' set:
+
+```{r echo=FALSE, cache=TRUE}
+news_1 <- read.csv('data/ngrams/news_ngrams1.txt')
+news_2 <- read.csv('data/ngrams/news_ngrams2.txt')
+news_3 <- read.csv('data/ngrams/news_ngrams3.txt')
+news_5 <- read.csv('data/ngrams/news_ngrams5.txt')
+
+library(ggplot2)
+source('multiplot.R')
+
+n = 20
+p1 <- ggplot(head(news_1, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p2 <- ggplot(head(news_2, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p3 <- ggplot(head(news_3, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+p5 <- ggplot(head(news_5, n=n), aes(x=reorder(ngrams, Freq), y=Freq)) + geom_bar(stat="identity") + coord_flip()
+
+multiplot(p1, p3, p2, p5, cols=2)
+```
+
+Some, I think, expected, conclusions that can be made from this graps:
+
+* One-grams and two-grams are almost identical for all datasets
+* More complex ngrams are similar for 'news' and 'blogs'. 'Twitter' set differs a lot from these two.

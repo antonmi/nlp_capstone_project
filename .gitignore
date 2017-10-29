@@ -1,0 +1,9 @@
+en_US
+data/blogs_sentences.txt
+data/news_sentences.txt
+data/twitter_sentences.txt
+NML_cache
+NML_files
+.DS_Store
+.Rhistory
+.idea
