@@ -18,7 +18,7 @@ The first milestone is about getting and cleaning data, and do basic exploratory
 2. Extracted ngrams from datasets
 3. Built frequency diagram for 1, 2, 3, and 5-grams
 
-One can find the code here
+One can find the code [here](https://github.com/antonmi/nlp_capstone_project).
 
 Please, see details below.
 
