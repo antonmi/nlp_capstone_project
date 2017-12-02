@@ -65,7 +65,7 @@ build_ngrams <- function(name, file_path) {
     stats <- table(ngrams)
     stats <- stats[order(-unlist(stats))]
     data_frame <- data.frame(unlist(stats))
-    data_frame <- data_frame %>% filter(Freq >= 5)
+    #data_frame <- data_frame %>% filter(Freq >= 5)
     write.csv(data_frame, file = ngrams_path, row.names=FALSE)
   }
   

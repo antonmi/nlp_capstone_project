@@ -1,57 +1,49 @@
 library(dplyr)
 library(stringr)
+library(purrr)
+library(hash)
 
-twitter_sets <- list()
-for(i in c(1:10)) {
-  file <- paste('data/ngrams/twitter_ngrams', i, '.txt', sep = '')
-  data <- read.csv(file)
-  twitter_sets[[i]] <- as.character(data[,1])
-}
 
-get_first_words <- function(string) {
-  words = strsplit(as.character(string), " ")[[1]]
-  first = head(words, n=-1)
-  paste(first, collapse = ' ')
-}
-
-find_phrases <- function(generated, intersection_set, phrases_set) {
-  size <- length(phrases_set)
-  for (i in c(1:size)) {
-    phrase <- as.character(phrases_set[i])
-    first <- get_first_words(phrase)
-    if (is.element(first, intersection_set)) {
-      intersection_set <- setdiff(intersection_set, first)
-      position <- which(generated == first)
-      generated[position] <- phrase
-    }
+put_phrase <- function(top_hash, phrase, count) {
+  words <-  strsplit(phrase, ' ')[[1]]
+  hash = top_hash
   
-    if (i %% 1000 == 0) {
-      print(paste("i = ", i))
-      print(paste("set size = ", length(intersection_set)))
+  for (word in words) {
+    hash <- if (is.null(hash[[word]])) {
+      hash[[word]] <- c(hash(), as.integer(count))
+      hash
+    } else {
+      hash[[word]][[1]]
     }
   }
+  top_hash
+}
   
-  return(generated)
+find <- function(top_hash, phrase) {
+  words <-  strsplit(phrase, ' ')[[1]]
+  result <- c(top_hash, 0)
+  for (word in words) {
+    hash <- result[[1]]
+    result <- if (is.null(hash[[word]])) {
+      c(hash(), 0)
+    } else {
+      hash[[word]]
+    }
+  }  
+  result
 }
 
+hash <- hash()
 
-first_words <- sapply(twitter_sets[[2]], get_first_words)
-intersection_set <- intersect(twitter_sets[[1]], first_words)
-generated <- intersection_set
-generated <- find_phrases(generated, intersection_set, twitter_sets[[2]])   
-
-con <- file('data/generated.txt', 'w')
-for (sentence in generated) { write(sentence, con, append = TRUE) }
-close(con)
-
-for (i in c(3:10)) {
-  print(paste("For i =", i))
-  first_words <- sapply(twitter_sets[[i]], get_first_words)
-  intersection_set <- intersect(generated, first_words)
-  generated <- find_phrases(generated, intersection_set, twitter_sets[[i]])  
+print(Sys.time())
+for(i in c(1:10)) {
+  print(paste("Import", i))
+  file <- paste('data/ngrams/total', i, '.txt', sep = '')
+  set <- read.csv(file)
+  
+  for (i in c(1:dim(set)[[1]])) {
+    hash <- put_phrase(hash, as.character(set[[i, 1]]), set[[i, 2]])
+  }
 }
 
-
-con <- file('data/generated_news.txt', 'w')
-for (sentence in generated) { write(sentence, con, append = TRUE) }
-close(con)
+print(Sys.time())
